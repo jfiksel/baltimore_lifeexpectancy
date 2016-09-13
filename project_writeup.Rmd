@@ -24,8 +24,10 @@ The purpose of this project is to predict life expectancy in Baltimore on a sing
 * Highly correlated explanatory variables (using LASSO should take care of this)
 * We have aggregate neighborhooddata, but want to predict at an "observation" (block) level 
     + [Potentially interesting paper](http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf)
+        + Introduces bias
+    + Not as many variables available on block level--will have to use readily available data to predict these
 
-### What to work on this week
+### What to work on this week (and following weeks)
 
 * Downloading and preprocessing data sources 
     + Tidy data
@@ -33,6 +35,7 @@ The purpose of this project is to predict life expectancy in Baltimore on a sing
 * Visualizing data
     + Spatial correlations for different variables by neighborhood
 * Obtain data to define street blocks in R
+* Research statistical issues in literature 
 ```{r load_packages, results='hide', echo=FALSE, eval=FALSE}
 install.packages(c("XML", "downloader","pdftools"), repos="http://cran.rstudio.com/")
 library(pdftools)
