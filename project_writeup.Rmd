@@ -78,3 +78,7 @@ pdf_list <- list.files(path="./data/rawpdfs",pattern="pdf$", full.names=TRUE)
 pdf <- pdf_list[1]
 text <- pdf_text(pdf)
 ```
+
+```{r session_info}
+devtools::session_info()
+```
