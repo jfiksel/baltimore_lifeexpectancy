@@ -6,8 +6,8 @@ output: html_document
 ---
 
 ```{r load_packages}
-install.packages(c("tm", "XML", "downloader"), repos="http://cran.rstudio.com/")
-library(tm)
+install.packages(c("XML", "downloader","pdftools"), repos="http://cran.rstudio.com/")
+library(pdftools)
 library(XML)
 library(downloader)
 ```
@@ -38,6 +38,10 @@ lapply(seq_along(pdf.urlrecent), function(ind){
   dateDownloaded <- date()
   saveRDS(dateDownloaded, "./data/rawpdfs/dateDownloaded.rds")
   })
-
 ```
 
+```{r process_pdfs}
+pdf_list <- list.files(path="./data/rawpdfs",pattern="pdf$", full.names=TRUE)
+pdf <- pdf_list[1]
+text <- pdf_text(pdf)
+```
