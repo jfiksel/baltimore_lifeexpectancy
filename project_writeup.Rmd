@@ -1,0 +1,43 @@
+---
+title: "Baltimore Life Expectancy"
+author: "Jacob Fiksel"
+date: "September 12, 2016"
+output: html_document
+---
+
+```{r load_packages}
+install.packages(c("tm", "XML", "downloader"), repos="http://cran.rstudio.com/")
+library(tm)
+library(XML)
+library(downloader)
+```
+
+```{r download_pdfs}
+reports <- 'http://health.baltimorecity.gov/neighborhood-health-profile-reports'
+reports.html <- htmlParse(reports)
+find.pdf <- xpathSApply(reports.html, "//a/@href")
+pdf.url <- as.character(find.pdf[grep('pdf', find.pdf)])
+pdf.urlrecent <- pdf.url[!grepl('2008', pdf.url)]
+pdf.names <- sapply(pdf.urlrecent, function(url){
+  start <- regexpr("%20", url) + 3 
+  stop <- nchar(url)-4
+  name <- substr(url, start, stop)
+  gsub("%20", "_", name)
+},USE.NAMES=FALSE)
+
+if(!file.exists("data")){
+  dir.create("data")
+}
+if(!file.exists("data/rawpdfs")){
+  dir.create("data/rawpdfs")
+}
+lapply(seq_along(pdf.urlrecent), function(ind){
+  file.name <- paste0("./data/rawpdfs/", pdf.names[ind],".pdf")
+  if(!file.exists(file.name))
+  download(pdf.urlrecent[ind], file.name)
+  dateDownloaded <- date()
+  saveRDS(dateDownloaded, "./data/rawpdfs/dateDownloaded.rds")
+  })
+
+```
+
