@@ -21,8 +21,9 @@ The purpose of this project is to predict life expectancy in Baltimore on a sing
 ### Statistical issues to overcome:
 
 * Neighborhoods will be correlated (spatially and also based on other characteristics)
-* Highly correlated explanatory variables
-* We have aggregate neighborhooddata, but want to predict at an "observation" (block) level
+* Highly correlated explanatory variables (using LASSO should take care of this)
+* We have aggregate neighborhooddata, but want to predict at an "observation" (block) level 
+    + [Potentially interesting paper](http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf)
 
 ### What to work on this week
 

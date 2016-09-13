@@ -142,12 +142,19 @@ $(document).ready(function () {
 <h3>Statistical issues to overcome:</h3>
 <ul>
 <li>Neighborhoods will be correlated (spatially and also based on other characteristics)</li>
-<li>Highly correlated explanatory variables</li>
-<li>We have aggregate neighborhooddata, but want to predict at an “observation” (block) level</li>
+<li>Highly correlated explanatory variables (using LASSO should take care of this)</li>
+<li>We have aggregate neighborhooddata, but want to predict at an “observation” (block) level
+<ul>
+<li><a href="http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf">Potentially interesting paper</a>
+<ul>
+<li>Introduces bias</li>
+</ul></li>
+<li>Not as many variables available on block level–will have to use readily available data to predict these</li>
+</ul></li>
 </ul>
 </div>
-<div id="what-to-work-on-this-week" class="section level3">
-<h3>What to work on this week</h3>
+<div id="what-to-work-on-this-week-and-following-weeks" class="section level3">
+<h3>What to work on this week (and following weeks)</h3>
 <ul>
 <li>Downloading and preprocessing data sources
 <ul>
@@ -159,6 +166,7 @@ $(document).ready(function () {
 <li>Spatial correlations for different variables by neighborhood</li>
 </ul></li>
 <li>Obtain data to define street blocks in R</li>
+<li>Research statistical issues in literature</li>
 </ul>
 </div>
 
