@@ -123,7 +123,9 @@ $(document).ready(function () {
 </div>
 
 
-<p>The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the <a href="http://health.baltimorecity.gov/node/231">Baltimore City Health Department Neighborhood Health Profiles</a>. I plan on utilizing free data provided by <a href="https://data.baltimorecity.gov">OpenBaltimore</a>, which appears to have a more cleaned up version of the above data set in the <a href="https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni">Children and Family Health &amp; Well-Being (2010-2014)</a> and <a href="https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm">Housing and Community Development (2010-2014)</a> reports. The codebook is <a href="https://data.baltimorecity.gov/Neighborhoods/BNIA-Vital-Signs-Codebook/ryvy-9zw6">here</a> Some potentially useful datasets are:</p>
+<p>The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the <a href="http://health.baltimorecity.gov/node/231">Baltimore City Health Department Neighborhood Health Profiles</a>. I plan on utilizing free data provided by <a href="https://data.baltimorecity.gov">OpenBaltimore</a>, which appears to have a more cleaned up version of the above data set in the <a href="https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni">Children and Family Health &amp; Well-Being (2010-2014)</a> and <a href="https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm">Housing and Community Development (2010-2014)</a> reports. The codebook is <a href="https://data.baltimorecity.gov/Neighborhoods/BNIA-Vital-Signs-Codebook/ryvy-9zw6">here</a>.</p>
+<div id="potentially-useful-datasets" class="section level3">
+<h3>Potentially useful datasets</h3>
 <ul>
 <li><a href="https://data.baltimorecity.gov/Housing-Development/Vacant-Buildings/qqcv-ihn5">Building vacancies in Baltimore</a> which provides the street and neighborhood of all current building vacancies. This is updated at least twice a month</li>
 <li><a href="https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij">Victim based crime</a>. Accessing this on Sept. 13, 2016 the most recent crime listed occurred on Sept. 3, 2016</li>
@@ -131,40 +133,34 @@ $(document).ready(function () {
 <li><a href="https://data.baltimorecity.gov/City-Services/Liquor-Licenses/xv8d-bwgi">Liquor licenses</a></li>
 <li><a href="https://data.baltimorecity.gov/Neighborhoods/Census-Demographics-2010/cix3-h4cy">2010 Census data</a> at a neighborhood level</li>
 <li><a href="https://data.baltimorecity.gov/Health/Grocery-Stores/uuwk-975y">Grocery stores</a>. Contains type of supermarket and location. Could be interesting to look at distance to closest grocery store, and clusters of small or limited groceries stores predict health outcomes</li>
+<li><a href="https://data.baltimorecity.gov/Public-Safety/BPD-Arrests/n29z-hvc9">BPD Arrests</a>. Includes address of arrest for some, but not all arrests</li>
+<li><a href="https://data.baltimorecity.gov/Public-Safety/Prostitution-in-Baltimore-City/hky9-jqjm">Baltimore prositution</a></li>
+<li><a href="https://www.nhgis.org">Block-level state shape file</a></li>
 </ul>
-<pre class="r"><code>install.packages(c(&quot;XML&quot;, &quot;downloader&quot;,&quot;pdftools&quot;), repos=&quot;http://cran.rstudio.com/&quot;)
-library(pdftools)
-library(XML)
-library(downloader)</code></pre>
-<pre class="r"><code>reports &lt;- 'http://health.baltimorecity.gov/neighborhood-health-profile-reports'
-reports.html &lt;- htmlParse(reports)
-find.pdf &lt;- xpathSApply(reports.html, &quot;//a/@href&quot;)
-pdf.url &lt;- as.character(find.pdf[grep('pdf', find.pdf)])
-pdf.urlrecent &lt;- pdf.url[!grepl('2008', pdf.url)]
-pdf.names &lt;- sapply(pdf.urlrecent, function(url){
-  start &lt;- regexpr(&quot;%20&quot;, url) + 3 
-  stop &lt;- nchar(url)-4
-  name &lt;- substr(url, start, stop)
-  gsub(&quot;%20&quot;, &quot;_&quot;, name)
-},USE.NAMES=FALSE)
-
-if(!file.exists(&quot;data&quot;)){
-  dir.create(&quot;data&quot;)
-}
-if(!file.exists(&quot;data/rawpdfs&quot;)){
-  dir.create(&quot;data/rawpdfs&quot;)
-}
-lapply(seq_along(pdf.urlrecent), function(ind){
-  file.name &lt;- paste0(&quot;./data/rawpdfs/&quot;, pdf.names[ind],&quot;.pdf&quot;)
-  if(!file.exists(file.name)){
-    download(pdf.urlrecent[ind], file.name)
-  }
-  dateDownloaded &lt;- date()
-  saveRDS(dateDownloaded, &quot;./data/rawpdfs/dateDownloaded.rds&quot;)
-  })</code></pre>
-<pre class="r"><code>pdf_list &lt;- list.files(path=&quot;./data/rawpdfs&quot;,pattern=&quot;pdf$&quot;, full.names=TRUE)
-pdf &lt;- pdf_list[1]
-text &lt;- pdf_text(pdf)</code></pre>
+</div>
+<div id="statistical-issues-to-overcome" class="section level3">
+<h3>Statistical issues to overcome:</h3>
+<ul>
+<li>Neighborhoods will be correlated (spatially and also based on other characteristics)</li>
+<li>Highly correlated explanatory variables</li>
+<li>We have aggregate neighborhooddata, but want to predict at an “observation” (block) level</li>
+</ul>
+</div>
+<div id="what-to-work-on-this-week" class="section level3">
+<h3>What to work on this week</h3>
+<ul>
+<li>Downloading and preprocessing data sources
+<ul>
+<li>Tidy data</li>
+<li>Identifiers for neighborhood and block</li>
+</ul></li>
+<li>Visualizing data
+<ul>
+<li>Spatial correlations for different variables by neighborhood</li>
+</ul></li>
+<li>Obtain data to define street blocks in R</li>
+</ul>
+</div>
 
 
 

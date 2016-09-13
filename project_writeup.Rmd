@@ -4,7 +4,9 @@ author: "Jacob Fiksel"
 date: "September 12, 2016"
 output: html_document
 ---
-The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the [Baltimore City Health Department Neighborhood Health Profiles](http://health.baltimorecity.gov/node/231). I plan on utilizing free data provided by [OpenBaltimore](https://data.baltimorecity.gov), which appears to have a more cleaned up version of the above data set in the [Children and Family Health & Well-Being (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni) and [Housing and Community Development (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm) reports. Some potentially useful datasets are:
+The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the [Baltimore City Health Department Neighborhood Health Profiles](http://health.baltimorecity.gov/node/231). I plan on utilizing free data provided by [OpenBaltimore](https://data.baltimorecity.gov), which appears to have a more cleaned up version of the above data set in the [Children and Family Health & Well-Being (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni) and [Housing and Community Development (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm) reports. The codebook is [here](https://data.baltimorecity.gov/Neighborhoods/BNIA-Vital-Signs-Codebook/ryvy-9zw6). 
+
+### Potentially useful datasets
 
 * [Building vacancies in Baltimore](https://data.baltimorecity.gov/Housing-Development/Vacant-Buildings/qqcv-ihn5) which provides the street and neighborhood of all current building vacancies. This is updated at least twice a month
 * [Victim based crime](https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij). Accessing this on Sept. 13, 2016 the most recent crime listed occurred on Sept. 3, 2016
@@ -12,15 +14,33 @@ The purpose of this project is to predict life expectancy in Baltimore on a sing
 * [Liquor licenses](https://data.baltimorecity.gov/City-Services/Liquor-Licenses/xv8d-bwgi)
 * [2010 Census data](https://data.baltimorecity.gov/Neighborhoods/Census-Demographics-2010/cix3-h4cy) at a neighborhood level
 * [Grocery stores](https://data.baltimorecity.gov/Health/Grocery-Stores/uuwk-975y). Contains type of supermarket and location. Could be interesting to look at distance to closest grocery store, and clusters of small or limited groceries stores predict health outcomes
+* [BPD Arrests](https://data.baltimorecity.gov/Public-Safety/BPD-Arrests/n29z-hvc9). Includes address of arrest for some, but not all arrests
+* [Baltimore prositution](https://data.baltimorecity.gov/Public-Safety/Prostitution-in-Baltimore-City/hky9-jqjm)
+* [Block-level state shape file](https://www.nhgis.org)
 
-```{r load_packages, results='hide'}
+### Statistical issues to overcome:
+
+* Neighborhoods will be correlated (spatially and also based on other characteristics)
+* Highly correlated explanatory variables
+* We have aggregate neighborhooddata, but want to predict at an "observation" (block) level
+
+### What to work on this week
+
+* Downloading and preprocessing data sources 
+    + Tidy data
+    + Identifiers for neighborhood and block
+* Visualizing data
+    + Spatial correlations for different variables by neighborhood
+* Obtain data to define street blocks in R
+```{r load_packages, results='hide', echo=FALSE, eval=FALSE}
 install.packages(c("XML", "downloader","pdftools"), repos="http://cran.rstudio.com/")
 library(pdftools)
 library(XML)
 library(downloader)
 ```
 
-```{r download_pdfs, results='hide'}
+
+```{r download_pdfs, results='hide', echo=FALSE, eval=FALSE}
 reports <- 'http://health.baltimorecity.gov/neighborhood-health-profile-reports'
 reports.html <- htmlParse(reports)
 find.pdf <- xpathSApply(reports.html, "//a/@href")
@@ -49,7 +69,7 @@ lapply(seq_along(pdf.urlrecent), function(ind){
   })
 ```
 
-```{r process_pdfs}
+```{r process_pdfs, eval=FALSE, echo=FALSE}
 pdf_list <- list.files(path="./data/rawpdfs",pattern="pdf$", full.names=TRUE)
 pdf <- pdf_list[1]
 text <- pdf_text(pdf)
