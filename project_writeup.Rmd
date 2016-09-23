@@ -6,8 +6,13 @@ output: html_document
 ---
 The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the [Baltimore City Health Department Neighborhood Health Profiles](http://health.baltimorecity.gov/node/231). I plan on utilizing free data provided by [OpenBaltimore](https://data.baltimorecity.gov), which appears to have a more cleaned up version of the above data set in the [Children and Family Health & Well-Being (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni) and [Housing and Community Development (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm) reports. The codebook is [here](https://data.baltimorecity.gov/Neighborhoods/BNIA-Vital-Signs-Codebook/ryvy-9zw6). 
 
-### Potentially useful datasets
+### Main question
+Can we predict life expectancy at the block-level resolution in Baltimore using various health, crime, and economic statistics collected at the individual house level and/or aggregated to the block or neighborhood level?
 
+### Datasets that I have downloaded 
+
+* [Children and Family Health & Well-Being (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni)
+* [Housing and Community Development (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm)
 * [Building vacancies in Baltimore](https://data.baltimorecity.gov/Housing-Development/Vacant-Buildings/qqcv-ihn5) which provides the street and neighborhood of all current building vacancies. This is updated at least twice a month
 * [Victim based crime](https://data.baltimorecity.gov/Public-Safety/BPD-Part-1-Victim-Based-Crime-Data/wsfq-mvij). Accessing this on Sept. 13, 2016 the most recent crime listed occurred on Sept. 3, 2016
 * [Real property taxes](https://data.baltimorecity.gov/Financial/Real-Property-Taxes/27w9-urtv) at an address level
@@ -18,67 +23,26 @@ The purpose of this project is to predict life expectancy in Baltimore on a sing
 * [Baltimore prositution](https://data.baltimorecity.gov/Public-Safety/Prostitution-in-Baltimore-City/hky9-jqjm)
 * [Block-level state shape file](https://www.nhgis.org)
 
+### Datasets that I want to download
+* [Walkscores](https://www.walkscore.com) through their API
+    + Waiting to get API approved
+    + Uses many of the variables that I already have access to, but gives combined walkscore and other statistics for specific locations
+    
+### Preprocessing
+* Lots of missing locations, especially on arrest data
+    + Have to investigate if this is random throughout police districts, or is biased
+* Use Google Maps API to get latitude and longitude for any data sets without this. Then use this to infer neighborhood & block for any datasets where neighborhood is not listed
+* Clean up dates
+* "Tidy" data. Separate data sets with numeric and character variables. Use either neighborhood or block as key
+
 ### Statistical issues to overcome:
 
 * Neighborhoods will be correlated (spatially and also based on other characteristics)
-* Highly correlated explanatory variables (using LASSO should take care of this)
 * We have aggregate neighborhooddata, but want to predict at an "observation" (block) level 
     + [Potentially interesting paper](http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf)
-        + Introduces bias
     + Not as many variables available on block level--will have to use readily available data to predict these
 
-### What to work on this week (and following weeks)
-
-* Downloading and preprocessing data sources 
-    + Tidy data
-    + Identifiers for neighborhood and block
-* Visualizing data
-    + Spatial correlations for different variables by neighborhood
-* Obtain data to define street blocks in R
-* Research statistical issues in literature 
-```{r load_packages, results='hide', echo=FALSE, eval=FALSE}
-install.packages(c("XML", "downloader","pdftools"), repos="http://cran.rstudio.com/")
-library(pdftools)
-library(XML)
-library(downloader)
-```
 
 
-```{r download_pdfs, results='hide', echo=FALSE, eval=FALSE}
-reports <- 'http://health.baltimorecity.gov/neighborhood-health-profile-reports'
-reports.html <- htmlParse(reports)
-find.pdf <- xpathSApply(reports.html, "//a/@href")
-pdf.url <- as.character(find.pdf[grep('pdf', find.pdf)])
-pdf.urlrecent <- pdf.url[!grepl('2008', pdf.url)]
-pdf.names <- sapply(pdf.urlrecent, function(url){
-  start <- regexpr("%20", url) + 3 
-  stop <- nchar(url)-4
-  name <- substr(url, start, stop)
-  gsub("%20", "_", name)
-},USE.NAMES=FALSE)
 
-if(!file.exists("data")){
-  dir.create("data")
-}
-if(!file.exists("data/rawpdfs")){
-  dir.create("data/rawpdfs")
-}
-lapply(seq_along(pdf.urlrecent), function(ind){
-  file.name <- paste0("./data/rawpdfs/", pdf.names[ind],".pdf")
-  if(!file.exists(file.name)){
-    download(pdf.urlrecent[ind], file.name)
-  }
-  dateDownloaded <- date()
-  saveRDS(dateDownloaded, "./data/rawpdfs/dateDownloaded.rds")
-  })
-```
 
-```{r process_pdfs, eval=FALSE, echo=FALSE}
-pdf_list <- list.files(path="./data/rawpdfs",pattern="pdf$", full.names=TRUE)
-pdf <- pdf_list[1]
-text <- pdf_text(pdf)
-```
-
-```{r session_info}
-devtools::session_info()
-```
