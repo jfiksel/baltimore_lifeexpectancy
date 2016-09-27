@@ -22,16 +22,24 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
 * [BPD Arrests](https://data.baltimorecity.gov/Public-Safety/BPD-Arrests/n29z-hvc9). Includes address of arrest for some, but not all arrests
 * [Baltimore prositution](https://data.baltimorecity.gov/Public-Safety/Prostitution-in-Baltimore-City/hky9-jqjm)
 * [Block-level state shape file](https://www.nhgis.org)
+* [Restaurants in Baltimore](https://data.baltimorecity.gov/Culture-Arts/Restaurants/k5ry-ef3g)
 
-### Datasets that I want to download
+### Datasets that I will/want to download
 * [Walkscores](https://www.walkscore.com) through their API
     + Waiting to get API approved
     + Uses many of the variables that I already have access to, but gives combined walkscore and other statistics for specific locations
+* [Shape files](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2012-Sh/6btb-a7mu)
+* [Zillow](http://www.zillow.com/howto/api/APIOverview.htm)
+    + Need API
+* Census block data
     
 ### Preprocessing
+* Have used codebook available online to rename variables so they are more easily understandable
+* Have cleaned up latitude and longitude where it applies 
 * Lots of missing locations, especially on arrest data
     + Have to investigate if this is random throughout police districts, or is biased
 * Use Google Maps API to get latitude and longitude for any data sets without this. Then use this to infer neighborhood & block for any datasets where neighborhood is not listed
+    + Use R package rgdl to map property taxes by latitude and longitude to csa
 * Clean up dates
 * "Tidy" data. Separate data sets with numeric and character variables. Use either neighborhood or block as key
 
