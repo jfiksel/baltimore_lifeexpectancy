@@ -1,4 +1,8 @@
 library(jsonlite)
+library(tigris)
+library(rgdal)
+library(downloader)
+
 if(!dir.exists("data")){
   dir.create("data")
 }
@@ -40,5 +44,31 @@ calls911 <- fromJSON("https://data.baltimorecity.gov/resource/m8g9-abgb.json")
 dest <- file.path("data", "raw_data", "calls911.rds")
 saveRDS(calls911, dest)
 
+### CSA shape file
 
+url <- 'http://bniajfi.org/wp-content/uploads/2014/04/csa_2010_boundaries.zip'
+download(url, dest=file.path('data', 'raw_data', 'shapes.zip'))
+unzip(file.path('data', 'raw_data', 'shapes.zip'),
+      exdir=file.path('data', 'raw_data'))
+csa_shapes <- readOGR(file.path("data", "raw_data"), "CSA_NSA_Tracts")
+dest <- file.path("data", "raw_data", "csa_shapes.rds")
+saveRDS(csa_shapes, dest)
+
+### Neighborhood shape file
+url <- 'http://gis.baltimore.opendata.arcgis.com/datasets/1ca93e68f11541d4b59a63243725c4b7_0.zip'
+download.file(url, dest=file.path('data', 'raw_data', 'neigh_shapes.zip'))
+unzip(file.path('data', 'raw_data', 'neigh_shapes.zip'),
+      exdir=file.path('data', 'raw_data'))
+neighborhood_shapes <- readOGR(file.path("data", "raw_data"), "Neighborhoods")
+dest <- file.path("data", "raw_data", "neighborhood_shapes.rds")
+saveRDS(neighborhood_shapes, dest)
+### Baltimore 
+### lookup_code("Maryland", "Baltimore City")
+###  "The code for Maryland is '24' and the code for Baltimore city is '510'."
+### If error message occurs in line below, use:
+###    options(tigris_use_cache = FALSE)
+### Code can take a while to run
+block_defs <- blocks(state = 24, county = 510)
+dest <- file.path("data", "raw_data", "census_blocks.rds")
+saveRDS(block_defs, dest)
 

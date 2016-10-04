@@ -1,20 +1,15 @@
 library(jsonlite)
 
 files_dir <- file.path("data", "raw_data")
-file_paths <- list.files(path=files_dir)
+file_paths <- list.files(path=files_dir, pattern=".rds")
 file_names <- gsub(".rds", "", file_paths)
-for(i in seq_along(file_paths)){
-  name <- as.character(file_names[i])
-  file <- file.path(files_dir, file_paths[i])
-  df <- readRDS(file)
-  assign(name, df)
-}
 
 processed_path <- file.path("data", "processed_data")
 if(!dir.exists(processed_path)){
   dir.create(processed_path)
 }
 ### Cleaning calls911
+calls911 <- readRDS(file.path(files_dir, "calls911.rds"))
 date <- calls911$calldatetime
 calls911$calldatetime <- unname(sapply(date, function(x) substr(x, 1, 10)))
 location <- calls911$location
@@ -25,6 +20,7 @@ calls911$location <- NULL
 saveRDS(calls911, file.path(processed_path, "calls911processed.rds"))
 
 ### Get latitude and longtitude of grocery stores
+grocery_stores <- readRDS(file.path(files_dir, "grocery_stores.rds"))
 colnames(grocery_stores)[c(2,3,4)] <- c('city', 'address', 'state')
 google_api <- "AIzaSyDzHDDwR_AjIzMkk5OT472e2yLtqNgZz0E"
 full_address <- paste(grocery_stores$address, grocery_stores$city, grocery_stores$state, sep=" ")
@@ -48,6 +44,7 @@ grocery_stores$longitude <- unname(longitude)
 saveRDS(grocery_stores, file.path(processed_path, "grocery_storesprocessed.rds"))
 
 ### Rename census data
+census2010 <- readRDS(file.path(files_dir, "census2010.rds"))
 colnames(census2010) <- c("age6_18", "age19_24", "age25_44", "age45_64", "age65_over",
                           "csa2010", "pct_households_w.children", "total_female",
                           "pct_earn_less25k", "pct_earn_25k_40k", "pct_earn_40k_60k",
@@ -59,6 +56,7 @@ colnames(census2010) <- c("age6_18", "age19_24", "age25_44", "age45_64", "age65_
 saveRDS(census2010, file.path(processed_path, "census2010processed.rds"))
 
 ### Separate well being into different data frames by year
+well_being <- readRDS(file.path(files_dir, "well_being.rds"))
 colnames(well_being)[6] <- "csa"
 cnames.old <- unique(gsub("10$|11$|12$|13$|14$|2010$","", colnames(well_being)))
 cnames.old <- gsub("_", "", cnames.old)
@@ -91,6 +89,7 @@ colnames(well_being2014) <- cnames.new[gsub("14$|_","" ,colnames(well_being2014)
 saveRDS(well_being2014, file.path(processed_path, "well_being2014.rds"))
 
 ### Separate housing development into different data frames by year
+housing_devel <- readRDS(file.path(files_dir, "housing_devel.rds"))
 cnames.old <- unique(gsub("10|11|12|13|14","", colnames(housing_devel)))
 cnames.new <- c('affordability_mortgage', 'affordability_rent',
                 'pct_vacant_bmore', 'pct_sales_forcash', 'construction_permit_per1000',
@@ -122,3 +121,36 @@ saveRDS(housing_devel2013, file.path(processed_path, "housing_devel2013.rds"))
 housing_devel2014 <- housing_devel[,grep("14|neighborhood", colnames(housing_devel))]
 colnames(housing_devel2014) <- cnames.new[gsub("14", "", colnames(housing_devel2014))]
 saveRDS(housing_devel2014, file.path(processed_path, "housing_devel2014.rds"))
+
+### Property Taxes
+property_taxes <- readRDS(file.path(files_dir, "property_taxes.rds"))
+property_taxes <- property_taxes[property_taxes$location$coordinates!="NULL",]
+coordinates <-property_taxes$location$coordinates
+property_taxes <- property_taxes[,c(2,7, 12, 15)]
+property_taxes$longitude <- sapply(coordinates, function(x) x[1])
+property_taxes$latitude <- sapply(coordinates, function(x) x[2])
+property_taxes$citytax <- as.numeric(property_taxes$citytax)
+property_taxes <- property_taxes[!is.na(property_taxes$citytax),]
+property_taxes$rescode <- gsub(" ", "", property_taxes$rescode)
+saveRDS(property_taxes, file.path(processed_path, "property_taxes.rds"))
+
+#### Victim based crimes
+victim_crime <- readRDS(file.path(files_dir, "victim_crime.rds"))
+coordinates <- victim_crime$location_1$coordinates
+victim_crime$location_1 <- NULL
+isnull <- sapply(coordinates, function(x) is.null(x))
+victim_crime <- victim_crime[!isnull,]
+victim_crime$longitude <- unlist(sapply(coordinates, function(x) x[1]))
+victim_crime$latitude <- unlist(sapply(coordinates, function(x) x[2]))
+victim_crime <- victim_crime[,-c(1,2,4,10:12)]
+victim_crime$longitude <- as.numeric(victim_crime$longitude)
+victim_crime$latitude <- as.numeric(victim_crime$latitude)
+year <- as.integer(substr(victim_crime$crimedate,1,4))
+victim_crime$crimedate <- NULL
+victim_crime$year <- year
+saveRDS(victim_crime[victim_crime$year==2011,], file.path(processed_path, "victim_crime2011.rds"))
+saveRDS(victim_crime[victim_crime$year==2012,], file.path(processed_path, "victim_crime2012.rds"))
+saveRDS(victim_crime[victim_crime$year==2013,], file.path(processed_path, "victim_crime2013.rds"))
+saveRDS(victim_crime[victim_crime$year==2014,], file.path(processed_path, "victim_crime2014.rds"))
+saveRDS(victim_crime[victim_crime$year==2015,], file.path(processed_path, "victim_crime2015.rds"))
+saveRDS(victim_crime[victim_crime$year==2016,], file.path(processed_path, "victim_crime2016.rds"))

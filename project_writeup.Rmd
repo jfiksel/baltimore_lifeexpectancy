@@ -23,16 +23,8 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
 * [Baltimore prositution](https://data.baltimorecity.gov/Public-Safety/Prostitution-in-Baltimore-City/hky9-jqjm)
 * [Block-level state shape file](https://www.nhgis.org)
 * [Restaurants in Baltimore](https://data.baltimorecity.gov/Culture-Arts/Restaurants/k5ry-ef3g)
+* [ACS Block Group Household Income Data]
 
-### Datasets that I will/want to download
-* [Walkscores](https://www.walkscore.com) through their API
-    + Waiting to get API approved
-    + Uses many of the variables that I already have access to, but gives combined walkscore and other statistics for specific locations
-* [Shape files](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2012-Sh/6btb-a7mu)
-* [Zillow](http://www.zillow.com/howto/api/APIOverview.htm)
-    + Need API
-* Census block data
-    
 ### Preprocessing
 * Have used codebook available online to rename variables so they are more easily understandable
 * Have cleaned up latitude and longitude where it applies 
@@ -43,6 +35,57 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
 * Clean up dates
 * "Tidy" data. Separate data sets with numeric and character variables. Use either neighborhood or block as key
 
+### Visualizations
+
+Life expectancy by CSA
+```{r, echo=FALSE}
+library(sp)
+library(leaflet)
+library(maptools)
+library(ggplot2)
+library(plyr)
+library(ggmap)
+library(acs)
+library(tigris)
+csa <- readRDS(list.files(path=file.path("data", "raw_data"),
+                          pattern="csa_shapes.rds", full.names=TRUE))
+blocks <- readRDS(list.files(path=file.path("data", "raw_data"),
+                             pattern="census_blocks.rds", full.names=TRUE))
+
+well_being <- readRDS(list.files(file.path("data", "processed_data"),
+                      pattern="well_being2014.rds", full.names=TRUE))
+property_taxes <- readRDS(list.files(file.path("data", "processed_data"),
+                                     pattern="property_taxes.rds", full.names=TRUE))
+victim_crime2015 <- readRDS(list.files(file.path("data", "processed_data"),
+                                       pattern="victim_crime2015.rds", full.names=TRUE))
+
+key <- na.omit(match(csa@data$Community, well_being$csa))
+### Remove jail
+csa <- csa[-51,]
+
+### CSA coordinates to latitude and longitude
+llprj <-  "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
+csa <- spTransform(csa,  llprj)
+
+
+### Plot CSA life expectancy 
+csa@data$id <- csa@data$Community
+csa@data$life_expectancy <- well_being$life_exepctancy[key]
+csa.points <- fortify(csa, region="id")
+csa.df <- join(csa.points, csa@data, by="id")
+csa.df$life_expectancy <- as.numeric(csa.df$life_expectancy)
+
+myggmap <- get_map(location="Baltimore", zoom=12)
+
+ggmap(myggmap)+
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black")  +
+  geom_polygon(data=csa.df, aes(x=long, y=lat, group=group, fill=life_expectancy), alpha=.4) +
+  geom_point(data=victim_crime2015[victim_crime2015$description=="SHOOTING",], aes(x=longitude, y=latitude), alpha=.5) +
+  scale_fill_gradientn("Life expectancy", colors=c('red', 'yellow', 'green')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Life Expectancy and Shootings 2015")
+```
+
 ### Statistical issues to overcome:
 
 * Neighborhoods will be correlated (spatially and also based on other characteristics)
@@ -50,7 +93,13 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
     + [Potentially interesting paper](http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf)
     + Not as many variables available on block level--will have to use readily available data to predict these
 
-
+### Packages
+* maps
+* maptools
+* rgdal
+* rgeos
+* ggmap
+* tigris
 
 
 
