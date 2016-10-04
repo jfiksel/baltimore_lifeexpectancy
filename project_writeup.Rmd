@@ -37,8 +37,8 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
 
 ### Visualizations
 
-Life expectancy by CSA
-```{r, echo=FALSE}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(sp)
 library(leaflet)
 library(maptools)
@@ -86,12 +86,68 @@ ggmap(myggmap)+
   ggtitle("Baltimore Life Expectancy and Shootings 2015")
 ```
 
-### Statistical issues to overcome:
 
-* Neighborhoods will be correlated (spatially and also based on other characteristics)
-* We have aggregate neighborhooddata, but want to predict at an "observation" (block) level 
-    + [Potentially interesting paper](http://faculty.som.yale.edu/ksudhir/workingpapers/Conditional%20Means%20Approach-JEctrics.pdf)
-    + Not as many variables available on block level--will have to use readily available data to predict these
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+ggmap(myggmap)+
+  geom_point(data=property_taxes[property_taxes$citytax <=20000,],
+             aes(x=longitude, y=latitude,colour=citytax), alpha=.5) +
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") +
+  scale_colour_gradientn("City taxes", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Property Taxes")
+```
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+## Baltimore City= 510
+acs_api <- "9de0607b39f202d656f833c9ed107b4d7e62ac0d"
+api.key.install(acs_api)
+income_data <- acs.fetch(endyear=2014,
+                         geography=geo.make(state="MD",
+                                            county=510,
+                                            tract="*",
+                                            block.group="*"),
+                         variable="B19013_001")
+
+
+income_df <- data.frame(GEOD=paste0(as.character(income_data@geography$state), 
+                                    as.character(income_data@geography$county),
+                                    income_data@geography$tract,
+                                    income_data@geography$blockgroup), 
+                        hhincome=income_data@estimate)
+colnames(income_df) <- c("GEOID", "hhincome")
+income_df <- income_df[!is.na(income_df$hhincome),]
+
+blocks.groups <- block_groups(state="MD", county=510)
+k <- which(substr(blocks.groups@data$TRACTCE, 1, 1)=="0")
+blocks.groups@data[k,]$GEOID <- paste0(substr(blocks.groups@data[k,]$GEOID, 1, 4), substr(blocks.groups@data[k,]$GEOID, 6, 12))
+blocks.groups@data$GEOID <- factor(blocks.groups@data$GEOID)
+bmore_merged <- geo_join(blocks.groups, income_df, "GEOID", "GEOID")
+
+bmore_merged@data$id <- bmore_merged@data$GEOID
+bmore_merged.points <- fortify(bmore_merged, region="id")
+bmore_merged.df <- join(bmore_merged.points, bmore_merged@data, by="id")
+
+ggmap(myggmap)+
+  geom_path(data=bmore_merged.df, aes(x=long, y=lat, group=group), color="black") +
+  geom_polygon(data=bmore_merged.df, aes(x=long, y=lat, group=group, fill=hhincome), alpha=0.5)+
+  scale_fill_gradientn("Average Household Income", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Block Group Household Income 2014")
+```
+
+### Analysis plan
+
+* Continue to identify any data sets/variables that need cleaning
+* Read downsampling literature
+* Decide whether to take a "machine learning approach" or more informed statistical approach
+    + By "informed" statistical approach, that means I do some variable selection on my own and use more traditional technique like LM/GLM
+* To identify variables of interest, there are two things to pay attention to:
+    + How homogeneous they are within neighborhood AND potentially correlated with life expectancy
+    + They can be aggregated at CSA scale and can be predicted from house/block level data
+* Decide how to use neighborhood spatial correlation
+* Apply method to predict at CENSUS block level
+
 
 ### Packages
 * maps
