@@ -1,4 +1,5 @@
 library(jsonlite)
+library(dplyr)
 
 files_dir <- file.path("data", "raw_data")
 file_paths <- list.files(path=files_dir, pattern=".rds")
@@ -154,3 +155,59 @@ saveRDS(victim_crime[victim_crime$year==2013,], file.path(processed_path, "victi
 saveRDS(victim_crime[victim_crime$year==2014,], file.path(processed_path, "victim_crime2014.rds"))
 saveRDS(victim_crime[victim_crime$year==2015,], file.path(processed_path, "victim_crime2015.rds"))
 saveRDS(victim_crime[victim_crime$year==2016,], file.path(processed_path, "victim_crime2016.rds"))
+
+### Education data
+education_data <- readRDS(file.path(files_dir, "acs_education.rds"))
+point.estimates <- education_data@estimate
+total <- point.estimates[,1]
+less.highschool <- rowSums(point.estimates[,c(3:10, 20:27)])
+highschool <- rowSums(point.estimates[,c(11,28)])
+somecollege <- rowSums(point.estimates[,c(12,13,29:30)])
+college <- rowSums(point.estimates[,c(14,15,31,32)])
+graduate <- rowSums(point.estimates[,c(16:18, 33:35)])
+education_df <- data.frame(GEOD=paste0(as.character(income_data@geography$state), 
+                                       as.character(income_data@geography$county),
+                                       income_data@geography$tract,
+                                       income_data@geography$blockgroup),
+                           pct.lesshighschool=less.highschool/total,
+                           pct.highschool=highschool/total,
+                           pct.somecollege=somecollege/total,
+                           pct.college=college/total,
+                           pct.graduate=graduate/total)
+education_df <- education_df[!is.na(rowSums(education_df[,-1])),]
+saveRDS(education_df, file.path(processed_path, "acs_education.rds"))
+
+### Household income
+income_data <- readRDS(file.path(files_dir, "acs_income.rds"))                           
+
+income_df <- data.frame(GEOD=paste0(as.character(income_data@geography$state), 
+                                    as.character(income_data@geography$county),
+                                    income_data@geography$tract,
+                                    income_data@geography$blockgroup), 
+                        hhincome=income_data@estimate)
+colnames(income_df) <- c("GEOID", "hhincome")
+income_df <- income_df[!is.na(income_df$hhincome),]
+saveRDS(income_df, file.path(processed_path, "acs_income.rds"))
+
+### Block groups
+block.groups <- readRDS(file.path(files_dir, "block_groups.rds"))
+k <- which(substr(block.groups@data$TRACTCE, 1, 1)=="0")
+block.groups@data[k,]$GEOID <- paste0(substr(block.groups@data[k,]$GEOID, 1, 4), substr(block.groups@data[k,]$GEOID, 6, 12))
+block.groups@data$GEOID <- factor(block.groups@data$GEOID)
+saveRDS(block.groups, file.path(processed_path, "block_groups.rds"))
+
+### Liquor
+liquor_stores <- readRDS(file.path(files_dir, "liquor_stores.rds"))
+liquor_stores <- subset(liquor_stores, licensestatus=="Renewed")
+liquor_stores <- data.frame(latitude=liquor_stores$location_1$latitude,
+                            longitude=liquor_stores$location_1$longitude)
+liquor_stores <- subset(liquor_stores, !duplicated(liquor_stores))
+saveRDS(liquor_stores, file.path(processed_path, "liquor_stores.rds"))
+
+### Housing
+housing_market <- readRDS(file.path(files_dir, "housing_market.rds"))
+housing_market$blockgroup <- paste0("24510", housing_market$blockgroup)
+housing_market <- select(housing_market, blockgroup, foreclosurefilings, mediansalesprice20092010, vacantlots, owneroccupied)
+housing_market[,2:5] <- sapply(housing_market[,2:5], as.numeric)
+colnames(housing_market)[c(2,3)] <- c("foreclosurepct", "mediansalesprice")
+saveRDS(housing_market, file.path(processed_path, "housing_market.rds"))

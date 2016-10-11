@@ -4,6 +4,137 @@ author: "Jacob Fiksel"
 date: "September 12, 2016"
 output: html_document
 ---
+
+### Introduction
+In 2011, the Baltimore City Health Department released Neighborhood Health Profiles for the 55 Community Statistical Areas (CSAs) of Baltimore, revealing the large inequalities in health outcomes between neighborhoods in Baltimore. While there are several major health outcomes that can be targeted for improvement, this report will focus on life expectancy, which differed by over 20 years between the CSAs with the longest and shortest life expectancies. The Neighborhood Health Profiles, along with 2010 US Census data, provide several CSA level measurements to identify the underlying causes of this disparity. By pinpointing even one or two determinants of life expectancy, public health professionals can design interventions to raise the life expectancy in the worst-off CSAs in Baltimore. 
+
+One issue with the CSA Health Profiles is well known that individual blocks in Baltimore can segregate populations within a CSA by race and class. This is apparent when looking at the difference in property taxes paid north and south of Baltimore Street in the Patterson Park CSA (**INSERT FIGURE HERE**). In order for Baltimore public health professionals to precisely target health outcomes at a more local level than CSA, we combine open data from the City of Baltimore that are aggregated on various scales to identify variables associated with life expectancy and to predict life expectancy at the block level.
+
+### Methods
+The main challenge for predicting life expectancy at the block-level resolution is that there are very few publically available economic and health outcome measurements that are not aggregated or estimated at a more coarse scale. We have point estimates for the locations of shootings, burglaries, vacant buildings, and the property tax paid on individual houses. These can be smoothed across latitude and longitude using a kernel smoother, and averaged over the block. Each CSA can be assigned the average block value for these variables. Because property taxes are dense, we can find the variation of property taxes (or log property taxes) within a CSA, and use the inverse of this in a weighted linear regression. 
+
+The next finest scale that we have is block group, and we have measurements for household income, and home sale prices. Under the assumption that blocks are relatively homogeneous within block groups, we can assign each block the value of its block group, and for each CSA, we can average the block group values within that CSA. 
+
+
+Unfortunately most health outcomes are only found at the CSA scale, and would be very hard to predict with our lack of finer-scale data, so I hesitate to include these in our model. However, the data we do have at a finer scale can elucidate the role of economic conditions (property taxes and income), crime (shootings and burglaries), and physical degredation (vacant housing).
+
+My linear regression model will then include the averages over the block or block-group level within CSAs of the variables described above, with life-expectancy as the outcome, and weighted by the inverse of the variance of property taxes within a CSA (**Spatial correlation?**). Because these are all on the same scale as the block-level data, we can then predict for each block.
+
+### Exploratory Data Analysis
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+library(sp)
+library(leaflet)
+library(maptools)
+library(ggplot2)
+library(plyr)
+library(ggmap)
+library(acs)
+library(tigris)
+csa <- readRDS(list.files(path=file.path("data", "raw_data"),
+                          pattern="csa_shapes.rds", full.names=TRUE))
+blocks <- readRDS(list.files(path=file.path("data", "raw_data"),
+                             pattern="census_blocks.rds", full.names=TRUE))
+
+well_being <- readRDS(list.files(file.path("data", "processed_data"),
+                      pattern="well_being2014.rds", full.names=TRUE))
+census2010 <- readRDS(list.files(file.path("data", "processed_data"),
+                                 pattern="census2010processed.rds", full.names=TRUE))
+property_taxes <- readRDS(list.files(file.path("data", "processed_data"),
+                                     pattern="property_taxes.rds", full.names=TRUE))
+victim_crime2015 <- readRDS(list.files(file.path("data", "processed_data"),
+                                       pattern="victim_crime2015.rds", full.names=TRUE))
+victim_crime2014 <- readRDS(list.files(file.path("data", "processed_data"),
+                                       pattern="victim_crime2014.rds", full.names=TRUE))
+education_df <- readRDS(list.files(file.path("data", "processed_data"),
+                                   pattern="acs_education.rds", full.names = TRUE))
+income_df <- readRDS(list.files(file.path("data", "processed_data"),
+                                   pattern="acs_income.rds", full.names = TRUE))
+block_groups <- readRDS(list.files(file.path("data", "processed_data"),
+                                   pattern="block_groups.rds", full.names = TRUE))
+liquor.stores <- readRDS(list.files(file.path("data", "processed_data"),
+                                   pattern="liquor_stores.rds", full.names = TRUE))
+housing_market <- readRDS(list.files(file.path("data", "processed_data"),
+                                    pattern="housing_market.rds", full.names = TRUE))
+
+key <- na.omit(match(csa@data$Community, well_being$csa))
+### Remove jail
+csa <- csa[-51,]
+
+### CSA coordinates to latitude and longitude
+llprj <-  "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
+csa <- spTransform(csa,  llprj)
+
+
+### Plot CSA life expectancy 
+csa@data$id <- csa@data$Community
+csa@data$life_expectancy <- well_being$life_exepctancy[key]
+csa.points <- fortify(csa, region="id")
+csa.df <- join(csa.points, csa@data, by="id")
+csa.df$life_expectancy <- as.numeric(csa.df$life_expectancy)
+
+myggmap <- get_map(location="Baltimore", zoom=12)
+### Plot income taxes by household
+
+### First neighborhood to CSA
+csaname <- csa@data$Community
+neighborhood <- csa@data$Neigh
+neighborhood <- sapply(neighborhood, function(x) strsplit(as.character(x), ", "))
+times <- sapply(neighborhood, length)
+neighborhood <- toupper(unlist(neighborhood))
+csakey <-rep(csaname, times=times)
+names(csakey) <- neighborhood
+
+property_taxes <- property_taxes[property_taxes$neighborhood %in% names(csakey),]
+property_taxes$csa <- csakey[property_taxes$neighborhood]
+### Now plot
+ggmap(myggmap)+
+  geom_point(data=property_taxes[property_taxes$citytax <=20000,],
+             aes(x=longitude, y=latitude,colour=citytax), alpha=.3) +
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") +
+  scale_colour_gradientn("City taxes", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Property Taxes")
+
+### Plot shootings
+victim_crime <- rbind(victim_crime2014, victim_crime2015)
+ggmap(myggmap)+
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black")  +
+  geom_polygon(data=csa.df, aes(x=long, y=lat, group=group, fill=life_expectancy), alpha=.4) +
+  geom_point(data=victim_crime[victim_crime$description=="SHOOTING",], aes(x=longitude, y=latitude), alpha=.5) +
+  scale_fill_gradientn("Life expectancy", colors=c('red', 'yellow', 'green')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Life Expectancy and Shootings 2015 & 2014")
+
+### Just burglary
+ggmap(myggmap)+
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black")  +
+  geom_polygon(data=csa.df, aes(x=long, y=lat, group=group, fill=life_expectancy), alpha=.4) +
+  geom_point(data=victim_crime2015[victim_crime2015$description=="BURGLARY",], aes(x=longitude, y=latitude), alpha=.2) +
+  scale_fill_gradientn("Life expectancy", colors=c('red', 'yellow', 'green')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Life Expectancy and Burglary 2015")
+
+
+### Income by block group
+
+bmore_merged <- geo_join(block_groups, income_df, "GEOID", "GEOID")
+
+bmore_merged@data$id <- bmore_merged@data$GEOID
+bmore_merged.points <- fortify(bmore_merged, region="id")
+bmore_merged.df <- join(bmore_merged.points, bmore_merged@data, by="id")
+
+ggmap(myggmap)+
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") +
+  geom_polygon(data=bmore_merged.df, aes(x=long, y=lat, group=group, fill=hhincome), alpha=0.5)+
+  scale_fill_gradientn("Average Household Income", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
+  xlab("Longitude") + ylab("Latitude") + 
+  ggtitle("Baltimore Block Group Household Income 2014")
+```
+
+### From earlier writing
+
 The purpose of this project is to predict life expectancy in Baltimore on a single block resolution. The main source of data for life expectancy at the neighborhood level are the [Baltimore City Health Department Neighborhood Health Profiles](http://health.baltimorecity.gov/node/231). I plan on utilizing free data provided by [OpenBaltimore](https://data.baltimorecity.gov), which appears to have a more cleaned up version of the above data set in the [Children and Family Health & Well-Being (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Children-and-Family-Health-Well-Being-2010-2014-/rtbq-mnni) and [Housing and Community Development (2010-2014)](https://data.baltimorecity.gov/Neighborhoods/Housing-and-Community-Development-2010-2014-/mvvs-32jm) reports. The codebook is [here](https://data.baltimorecity.gov/Neighborhoods/BNIA-Vital-Signs-Codebook/ryvy-9zw6). 
 
 ### Main question
@@ -35,106 +166,7 @@ Can we predict life expectancy at the block-level resolution in Baltimore using 
 * Clean up dates
 * "Tidy" data. Separate data sets with numeric and character variables. Use either neighborhood or block as key
 
-### Visualizations
 
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-library(sp)
-library(leaflet)
-library(maptools)
-library(ggplot2)
-library(plyr)
-library(ggmap)
-library(acs)
-library(tigris)
-csa <- readRDS(list.files(path=file.path("data", "raw_data"),
-                          pattern="csa_shapes.rds", full.names=TRUE))
-blocks <- readRDS(list.files(path=file.path("data", "raw_data"),
-                             pattern="census_blocks.rds", full.names=TRUE))
-
-well_being <- readRDS(list.files(file.path("data", "processed_data"),
-                      pattern="well_being2014.rds", full.names=TRUE))
-property_taxes <- readRDS(list.files(file.path("data", "processed_data"),
-                                     pattern="property_taxes.rds", full.names=TRUE))
-victim_crime2015 <- readRDS(list.files(file.path("data", "processed_data"),
-                                       pattern="victim_crime2015.rds", full.names=TRUE))
-
-key <- na.omit(match(csa@data$Community, well_being$csa))
-### Remove jail
-csa <- csa[-51,]
-
-### CSA coordinates to latitude and longitude
-llprj <-  "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
-csa <- spTransform(csa,  llprj)
-
-
-### Plot CSA life expectancy 
-csa@data$id <- csa@data$Community
-csa@data$life_expectancy <- well_being$life_exepctancy[key]
-csa.points <- fortify(csa, region="id")
-csa.df <- join(csa.points, csa@data, by="id")
-csa.df$life_expectancy <- as.numeric(csa.df$life_expectancy)
-
-myggmap <- get_map(location="Baltimore", zoom=12)
-
-ggmap(myggmap)+
-  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black")  +
-  geom_polygon(data=csa.df, aes(x=long, y=lat, group=group, fill=life_expectancy), alpha=.4) +
-  geom_point(data=victim_crime2015[victim_crime2015$description=="SHOOTING",], aes(x=longitude, y=latitude), alpha=.5) +
-  scale_fill_gradientn("Life expectancy", colors=c('red', 'yellow', 'green')) +
-  xlab("Longitude") + ylab("Latitude") + 
-  ggtitle("Baltimore Life Expectancy and Shootings 2015")
-```
-
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-ggmap(myggmap)+
-  geom_point(data=property_taxes[property_taxes$citytax <=20000,],
-             aes(x=longitude, y=latitude,colour=citytax), alpha=.5) +
-  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") +
-  scale_colour_gradientn("City taxes", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
-  xlab("Longitude") + ylab("Latitude") + 
-  ggtitle("Baltimore Property Taxes")
-```
-
-
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-## Baltimore City= 510
-acs_api <- "9de0607b39f202d656f833c9ed107b4d7e62ac0d"
-api.key.install(acs_api)
-income_data <- acs.fetch(endyear=2014,
-                         geography=geo.make(state="MD",
-                                            county=510,
-                                            tract="*",
-                                            block.group="*"),
-                         variable="B19013_001")
-
-
-income_df <- data.frame(GEOD=paste0(as.character(income_data@geography$state), 
-                                    as.character(income_data@geography$county),
-                                    income_data@geography$tract,
-                                    income_data@geography$blockgroup), 
-                        hhincome=income_data@estimate)
-colnames(income_df) <- c("GEOID", "hhincome")
-income_df <- income_df[!is.na(income_df$hhincome),]
-
-blocks.groups <- block_groups(state="MD", county=510)
-k <- which(substr(blocks.groups@data$TRACTCE, 1, 1)=="0")
-blocks.groups@data[k,]$GEOID <- paste0(substr(blocks.groups@data[k,]$GEOID, 1, 4), substr(blocks.groups@data[k,]$GEOID, 6, 12))
-blocks.groups@data$GEOID <- factor(blocks.groups@data$GEOID)
-bmore_merged <- geo_join(blocks.groups, income_df, "GEOID", "GEOID")
-
-bmore_merged@data$id <- bmore_merged@data$GEOID
-bmore_merged.points <- fortify(bmore_merged, region="id")
-bmore_merged.df <- join(bmore_merged.points, bmore_merged@data, by="id")
-
-ggmap(myggmap)+
-  geom_path(data=bmore_merged.df, aes(x=long, y=lat, group=group), color="black") +
-  geom_polygon(data=bmore_merged.df, aes(x=long, y=lat, group=group, fill=hhincome), alpha=0.5)+
-  scale_fill_gradientn("Average Household Income", colors=c('red', 'yellow', 'lightgreen', 'darkgreen')) +
-  xlab("Longitude") + ylab("Latitude") + 
-  ggtitle("Baltimore Block Group Household Income 2014")
-```
 
 ### Analysis plan
 
