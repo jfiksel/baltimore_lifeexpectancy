@@ -7,7 +7,7 @@ library(ggmap)
 library(acs)
 library(tigris)
 
-csa <- readRDS(list.files(path=file.path("data", "raw_data"),
+csa <- readRDS(list.files(path=file.path("data", "processed_data"),
                           pattern="csa_shapes.rds", full.names=TRUE))
 blocks <- readRDS(list.files(path=file.path("data", "raw_data"),
                              pattern="census_blocks.rds", full.names=TRUE))
@@ -34,13 +34,6 @@ housing_market <- readRDS(list.files(file.path("data", "processed_data"),
                                     pattern="housing_market.rds", full.names = TRUE))
 
 key <- na.omit(match(csa@data$Community, well_being$csa))
-### Remove jail
-csa <- csa[-51,]
-
-### CSA coordinates to latitude and longitude
-llprj <-  "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
-csa <- spTransform(csa,  llprj)
-
 
 ### Plot CSA life expectancy 
 csa@data$id <- csa@data$Community
@@ -52,7 +45,7 @@ csa.df$life_expectancy <- as.numeric(csa.df$life_expectancy)
 myggmap <- get_map(location="Baltimore", zoom=12)
 ggmap(myggmap)+ 
   #geom_polygon(data=csa.df, aes(x=long, y=lat, group=group)) +
-  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") 
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black") +
 
 
 ### Plot income taxes by household
@@ -145,3 +138,19 @@ ggmap(myggmap)+
   xlab("Longitude") + ylab("Latitude") + 
   ggtitle("Baltimore Block Group Foreclosure Percentage")
 
+### try with pointdensityP
+shooting <- subset(victim_crime2015, description=="BURGLARY")
+shooting_density <- pointdensity(df=shooting, lat_col="latitude", lon_col="longitude",
+                                 grid_size=1, radius=5)
+
+### Try with KernSmooth
+dens <- bkde2D(as.matrix(shooting[,6:7]), bandwidth=c(.005, .005), range.x=list(c(-76.7, -76.5), c(39.15, 39.4)))
+
+### Shows each row of matrix corresponds to x1, each column to x2
+test <- data.frame(long=rep(dens$x1, 51), lat=rep(dens$x2, each=51), resp=as.vector(dens$fhat))
+ggplot(subset(test, resp > 1)) + geom_tile(aes(x=long, y=lat, fill=resp)) + geom_point(data=shooting, aes(x=longitude, y=latitude)) + ylim(39.2, 39.4)
+cont <- contour(dens$x1, dens$x2, dens$fhat)
+
+ggmap(myggmap)+
+  geom_path(data=csa.df, aes(x=long, y=lat, group=group), color="black")  +
+  geom_point(data=shooting_density, aes(x=lon, y=lat, color=count))

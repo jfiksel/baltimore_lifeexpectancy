@@ -1,4 +1,7 @@
-csa <- readRDS(list.files(path=file.path("data", "raw_data"),
+library(sp)
+library(rgeos)
+
+csa <- readRDS(list.files(path=file.path("data", "processed_data"),
                           pattern="csa_shapes.rds", full.names=TRUE))
 blocks <- readRDS(list.files(path=file.path("data", "raw_data"),
                              pattern="census_blocks.rds", full.names=TRUE))
@@ -25,12 +28,8 @@ housing_market <- readRDS(list.files(file.path("data", "processed_data"),
                                      pattern="housing_market.rds", full.names = TRUE))
 
 key <- na.omit(match(csa@data$Community, well_being$csa))
-### Remove jail
-csa <- csa[-51,]
 
-### CSA coordinates to latitude and longitude
-llprj <-  "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"
-csa <- spTransform(csa,  llprj)
+### Get center with rCentroid
 
 ### CSA life expectancy 
 csa@data$id <- csa@data$Community
@@ -54,7 +53,7 @@ property_taxes$csa <- csakey[property_taxes$neighborhood]
 
 mean.citytax <- property_taxes %>% 
   group_by(csa) %>%
-  summarize(meantax=mean(log(citytax+1)))
+  summarize(meantax=mean(citytax+1))
 
 csa@data$life_expectancy <- as.numeric(csa@data$life_expectancy)
 cor(csa@data$life_expectancy, mean.citytax$meantax)

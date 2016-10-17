@@ -53,6 +53,9 @@ housing_market <- fromJSON("https://data.baltimorecity.gov/resource/7p9s-x9xv.js
 dest <- file.path('data', 'raw_data', 'housing_market.rds')
 saveRDS(housing_market, dest)
 
+restaurants <- fromJSON("https://data.baltimorecity.gov/resource/abuv-d2r2.json")
+dest <- file.path('data', 'raw_data', 'restaurants.rds')
+saveRDS(restaurants, dest)
 ### CSA shape file
 
 url <- 'http://bniajfi.org/wp-content/uploads/2014/04/csa_2010_boundaries.zip'
@@ -101,6 +104,33 @@ education_data <- acs.fetch(endyear=2014,
                          table.number="B15002")
 dest <- file.path("data", "raw_data", "acs_education.rds")
 saveRDS(education_data, dest)
+
+race <- acs.fetch(endyear=2014,
+                            geography=geo.make(state="MD",
+                                               county=510,
+                                               tract="*",
+                                               block.group="*"),
+                            table.number="B02001")
+dest <- file.path("data", "raw_data", "acs_race.rds")
+saveRDS(race, dest)
+
+sexbyage <- acs.fetch(endyear=2014,
+                  geography=geo.make(state="MD",
+                                     county=510,
+                                     tract="*",
+                                     block.group="*"),
+                  table.number="B01001")
+dest <- file.path("data", "raw_data", "acs_sexbyage.rds")
+saveRDS(sexbyage, dest)
+
+childrenbyfamtype <- acs.fetch(endyear=2014,
+                      geography=geo.make(state="MD",
+                                         county=510,
+                                         tract="*",
+                                         block.group="*"),
+                      table.number="B09002")
+dest <- file.path("data", "raw_data", "acs_childrenbyfamtype.rds")
+saveRDS(childrenbyfamtype, dest)
 
 ### block groups
 block.groups <- block_groups(state="MD", county=510)
